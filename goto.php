@@ -4,7 +4,7 @@
  *
  * Creates a macro to use for quickly navigating between WordPress projects and project parts quickly and efficiently.
  * This macro relies on that you use a Projects folder in your user folder, and that your database names are named
- * according to local_example_com, or matching your project directory where periods (.) are transformed to underscores
+ * according to example_com, or matching your project directory where periods (.) are transformed to underscores
  * (_).
  *
  * @example goto <project> <location> | <project> | <location>
@@ -34,12 +34,12 @@ class GoTo_Macro {
     protected $new_directory = '';
 
     public function __construct() {
-        $this->initialise();
+        $this->setup();
         $this->build();
         $this->execute();
     }
 
-    protected function initialise() {
+    protected function setup() {
 
         /** Only let this script run over the command line. */
         if ('cli' !== php_sapi_name()) {
@@ -54,11 +54,15 @@ class GoTo_Macro {
          * may be provided but the other might not be. It's easy to detect the domain because of the TLD.
          */
         if (is_array($GLOBALS) && array_key_exists('argv', $GLOBALS)) {
-            /** If there is more than two parameters provided, throw an error. Otherwise, continue. */
+
+            /**
+             * If there is more than two parameters provided (We count 3 because the first item is the CWD), throw an
+             * error. Otherwise, continue.
+             */
             if (4 > count($GLOBALS['argv'])) {
-                foreach ($GLOBALS['argv'] as $key => $arg) {
+                foreach ($GLOBALS['argv'] as $index => $arg) {
                     /** Skip first item because it's the CWD. */
-                    if (0 === $key) continue;
+                    if (0 === $index) continue;
 
                     /** Detect if this is a valid domain. */
                     if (false === $this->has_project_specified
@@ -77,19 +81,15 @@ class GoTo_Macro {
             } else {
                 $this->log_error('This command only accepts up to two parameters.');
             }
+
         } else {
             /** If the required variables for the macro are not provided, throw an error. */
             $this->log_error('The global variable argv is not set.');
         }
 
-    }
-
-    protected function build() {
-
         /**
          * If just the location has been provided but not the project (e.g. `goto parent`), see what subdirectory of
-         * Projects we're under to detect what project we're in automatically and allow us to navigate the current
-         * project.
+         * Projects we're under to detect what project we're in automatically and allow us to navigate it.
          */
         if (!$this->has_project_specified && $this->has_location_specified) {
             // Try to detect the project directory since it's not specified.
@@ -104,12 +104,16 @@ class GoTo_Macro {
                 $this->has_project_specified = true;
             } else {
                 /**
-                 * If the you're trying to navigate to a location in a project without specifying a project, and
+                 * If the you're try ing to navigate to a location in a project without specifying a project, and
                  * outside of a project, throw an error.
                  */
                 $this->log_error('You need to be in a project to use the shorthand `goto` macro. Please specify a project.');
             }
         }
+
+    }
+
+    protected function build() {
 
         /**
          * If both the project and location have been provided (e.g. `goto example.com child`) or the project was
@@ -125,7 +129,7 @@ class GoTo_Macro {
              * @var string $content_directory
              * @var string $theme_directory
              * @var string $plugins_directory
-             * @var string $db_name All of our local databases adopt the format local_domain_tld where all periods become underscores in the hostname.
+             * @var string $db_name All of our local databases adopt the format domain_tld where all periods become underscores in the hostname.
              * @var string $option_name If requesting parent this is "template". If requesting child this is "stylesheet". This is used to fetch our current parent/child theme from the database.
              * @var object $pdo
              */
@@ -139,7 +143,7 @@ class GoTo_Macro {
                 $option_name = '';
 
                 try {
-                    $pdo = new PDO("mysql:host=127.0.0.1;dbname=local_$db_name", 'root', 'root');
+                    $pdo = new PDO("mysql:host=127.0.0.1;dbname=$db_name", 'root', 'root');
                 } catch(PDOException $err) {
                     $this->log_error($err->getMessage());
                 }
